@@ -1,0 +1,73 @@
+# ─── Production compose ───────────────────────────────────────────────────────
+# Usage:
+#   cp .env.prod.example .env.prod   # first time only — fill in ALL values
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# IMPORTANT: never commit .env.prod.
+# In a CI/CD pipeline, inject secrets via your secrets manager
+# (AWS Secrets Manager, Vault, GitHub Actions secrets, etc.)
+# and write .env.prod at deploy time.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    image: task-manager:${IMAGE_TAG:-latest}
+    ports:
+      - "${APP_PORT:-8000}:${APP_PORT:-8000}"
+    env_file:
+      - .env.prod
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: "0.75"
+          memory: "512M"
+        reservations:
+          cpus: "0.25"
+          memory: "256M"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  db:
+    image: postgres:16-alpine
+    env_file:
+      - .env.prod
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    # Port NOT exposed in prod — only reachable within the compose network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      - app
+    restart: unless-stopped
+
+volumes:
+  postgres_prod_data:
