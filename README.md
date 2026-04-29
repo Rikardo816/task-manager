@@ -147,38 +147,65 @@ The production setup includes:
 
 ---
 
-## Running tests
+## Make commands
 
-```bash
-# Unit tests only — no database required, no coverage threshold enforced
-uv run pytest tests/unit/ --no-cov
+A `Makefile` is included as the primary developer interface. Run `make help` to see all targets.
 
-# All tests — requires a running PostgreSQL with TEST_DATABASE_URL set in .env.
-# Enforces 75% total coverage (unit + integration together reach that bar).
-uv run pytest
+```
+$ make help
 
-# Open the HTML coverage report after a full run
-open htmlcov/index.html   # macOS; use xdg-open on Linux
+  help                   Show this help message
+  install                Install all dependencies including dev extras (uv)
+  run                    Start the API server with hot-reload (requires local PostgreSQL)
+  test                   Run the full test suite with coverage (requires PostgreSQL)
+  test-unit              Run unit tests only — no database required
+  test-integration       Run integration tests only (requires PostgreSQL)
+  test-cov               Run full suite and open the HTML coverage report
+  lint                   Run flake8 and ruff
+  format                 Auto-format code with black and sort imports with isort
+  format-check           Check formatting without modifying files (useful in CI)
+  docker-up              Build and start all services (app + db + adminer)
+  docker-down            Stop and remove containers (volumes are preserved)
+  docker-fresh           Stop, remove containers AND volumes, then rebuild from scratch
+  docker-logs            Follow app container logs
+  docker-test            Run the full test suite inside the running app container
+  migrate                Apply all pending Alembic migrations
+  migration              Generate a new Alembic migration (usage: make migration msg="...")
+  migrate-down           Roll back the last Alembic migration
+  clean                  Remove build artefacts, caches and coverage reports
 ```
 
-With Docker running:
+### Common workflows
 
 ```bash
-docker compose exec app pytest
+# First-time setup
+make install
+make pre-commit-install   # install git hooks (run once after cloning)
+
+# Daily development (Docker)
+make docker-up           # start everything
+make docker-logs         # tail app logs
+make docker-fresh        # rebuild from scratch + fresh DB volumes
+
+# Testing
+make test-unit           # fast feedback, no DB needed
+make test                # full suite (requires DB)
+make test-cov            # full suite + open HTML coverage report
+
+# Before committing (or let pre-commit do it automatically)
+make format              # auto-fix formatting
+make lint                # check for style issues
+make format-check        # dry-run check (same as CI)
+make pre-commit-run      # run all hooks against every file
+
+# Migrations
+make migration msg="add index to tasks"
+make migrate
+
+# Tear down
+make docker-down         # stop containers, keep data
+make docker-fresh        # stop containers, wipe data, rebuild
 ```
-
----
-
-## Linting & formatting
-
-```bash
-uv run black src/ tests/          # auto-format
-uv run isort src/ tests/          # sort imports
-uv run flake8 src/ tests/         # lint
-uv run ruff check src/ tests/     # fast lint (superset of flake8)
-```
-
-All checks run automatically on every push/PR via GitHub Actions (`.github/workflows/ci.yml`).
 
 ---
 
@@ -211,12 +238,15 @@ All checks run automatically on every push/PR via GitHub Actions (`.github/workf
 ## Migrations (Alembic)
 
 ```bash
-# Generate a migration after changing a model
-alembic revision --autogenerate -m "describe the change"
+make migration msg="describe the change"   # generate a new migration
+make migrate                                # apply all pending migrations
+make migrate-down                           # roll back one step
+```
 
-# Apply all pending migrations
-alembic upgrade head
+Or with `uv run` directly:
 
-# Roll back one step
-alembic downgrade -1
+```bash
+uv run alembic revision --autogenerate -m "describe the change"
+uv run alembic upgrade head
+uv run alembic downgrade -1
 ```
