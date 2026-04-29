@@ -1,12 +1,10 @@
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
+import bcrypt
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 
 from src.domain.exceptions.domain_exceptions import UnauthorizedError
-
-_pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 class AuthService:
@@ -21,10 +19,10 @@ class AuthService:
         self._expire_minutes = expire_minutes
 
     def hash_password(self, password: str) -> str:
-        return _pwd_context.hash(password)
+        return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
-        return _pwd_context.verify(plain_password, hashed_password)
+        return bcrypt.checkpw(plain_password.encode(), hashed_password.encode())
 
     def create_access_token(self, user_id: UUID, email: str) -> str:
         expire = datetime.now(UTC) + timedelta(minutes=self._expire_minutes)

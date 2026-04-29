@@ -35,6 +35,10 @@ class SQLAlchemyUserRepository(UserRepository):
         )
         return self._to_entity(row) if row else None
 
+    async def get_all(self) -> list[User]:
+        rows = await self._session.scalars(select(UserModel))
+        return [self._to_entity(r) for r in rows]
+
     async def create(self, user: User) -> User:
         model = UserModel(
             id=user.id,

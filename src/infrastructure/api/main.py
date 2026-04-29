@@ -19,9 +19,12 @@ from src.domain.exceptions.domain_exceptions import (
     NotFoundError,
     UnauthorizedError,
 )
-from src.infrastructure.api.routers import auth, health, task_lists, tasks
+from src.infrastructure.api.routers import auth, health, system, task_lists, tasks, users
 from src.infrastructure.database.connection import engine
 from src.infrastructure.database.models.base import Base
+from src.infrastructure.logging import RequestLoggingMiddleware, setup_logging
+
+setup_logging()
 
 logger = structlog.get_logger()
 settings = get_settings()
@@ -72,6 +75,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -156,5 +160,7 @@ async def domain_handler(_: Request, exc: DomainException) -> JSONResponse:
 
 app.include_router(health.router)
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
+app.include_router(users.router)
+app.include_router(system.router)
 app.include_router(task_lists.router, prefix="/task-lists", tags=["task-lists"])
 app.include_router(tasks.router, prefix="/task-lists", tags=["tasks"])

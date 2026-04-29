@@ -41,13 +41,16 @@ All configuration is driven by environment files. Two templates are provided:
 
 ### Key variables
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `DATABASE_URL` | Async PostgreSQL DSN for the app | `postgresql+asyncpg://user:pass@db:5432/taskmanager` |
-| `TEST_DATABASE_URL` | Async PostgreSQL DSN for the test DB | `postgresql+asyncpg://user:pass@db:5432/taskmanager_test` |
-| `POSTGRES_USER` | PostgreSQL superuser (container) | `postgres` |
-| `POSTGRES_PASSWORD` | PostgreSQL password (container) | `postgres` |
-| `POSTGRES_DB` | Default database name (container) | `taskmanager` |
+The connection URL is built internally from the individual `POSTGRES_*` fields — you never write the full DSN by hand.
+
+| Variable | Description | Default / Example |
+|----------|-------------|-------------------|
+| `POSTGRES_HOST` | DB hostname — use `db` inside Docker Compose, `localhost` otherwise | `db` |
+| `POSTGRES_PORT` | PostgreSQL port | `5432` |
+| `POSTGRES_USER` | PostgreSQL user | `postgres` |
+| `POSTGRES_PASSWORD` | PostgreSQL password | `postgres` |
+| `POSTGRES_DB` | Application database name | `taskmanager` |
+| `POSTGRES_TEST_DB` | Test database name (dev only) | `taskmanager_test` |
 | `SECRET_KEY` | JWT signing key — **must be secret in prod** | `openssl rand -hex 32` |
 | `ALGORITHM` | JWT algorithm | `HS256` |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | Token lifetime in minutes | `30` |
@@ -76,9 +79,8 @@ uv sync --extra dev
 
 # 3. Create your local env file
 cp .env.example .env
-# Open .env and update DATABASE_URL / TEST_DATABASE_URL to point to localhost
-# instead of the Docker hostname "db":
-#   DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/taskmanager
+# The only value you need to change for local dev (no Docker) is POSTGRES_HOST:
+#   POSTGRES_HOST=localhost   ← change from "db" to "localhost"
 
 # 4. Create the databases
 psql -U postgres -c "CREATE DATABASE taskmanager;"
@@ -186,6 +188,9 @@ All checks run automatically on every push/PR via GitHub Actions (`.github/workf
 |--------|------|------|-------------|
 | POST | `/auth/register` | — | Create a new user |
 | POST | `/auth/login` | — | Obtain JWT token |
+| GET | `/users/me` | ✅ | Current authenticated user |
+| GET | `/users` | ✅ | List all users |
+| GET | `/system/enums` | — | Valid task statuses and priorities |
 | GET | `/task-lists` | ✅ | List all task lists (owner) |
 | POST | `/task-lists` | ✅ | Create a task list |
 | GET | `/task-lists/{id}` | ✅ | Get a task list |
@@ -198,7 +203,8 @@ All checks run automatically on every push/PR via GitHub Actions (`.github/workf
 | DELETE | `/task-lists/{id}/tasks/{task_id}` | ✅ | Delete a task |
 | PATCH | `/task-lists/{id}/tasks/{task_id}/status` | ✅ | Change task status |
 | PATCH | `/task-lists/{id}/tasks/{task_id}/assignee` | ✅ | Assign task to a user |
-| GET | `/health` | — | Health check |
+| GET | `/health` | — | Liveness — API process alive (used by load balancer) |
+| GET | `/status` | — | Readiness — external services reachable (DB, etc.) |
 
 ---
 

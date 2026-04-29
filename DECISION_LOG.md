@@ -137,7 +137,25 @@ Technical decisions made during the design and implementation of this project.
 
 ---
 
-## 12. Documentation protected with HTTP Basic Auth
+## 12. Centralised logging: structlog with extension points for observability
+
+**Decision:** All logging — both application code and stdlib loggers from third-party libraries — flows through a single configuration in `src/infrastructure/logging.py`. The public API is one function: `setup_logging()`.
+
+**Rationale:**
+- **Structured output by default.** structlog emits key-value pairs instead of free-form strings, making logs parseable by any log shipper (Datadog, Splunk, Loki, CloudWatch) without regex hacks.
+- **Environment-aware renderer.** Development gets coloured, human-readable output (`ConsoleRenderer`). Production gets JSON lines compatible with ECS (Elastic Common Schema), which most SaaS observability platforms ingest natively.
+- **Context variables for free.** `structlog.contextvars` lets `RequestLoggingMiddleware` bind `request_id`, `method`, and `path` once per request; every log line produced during that request automatically carries those fields — no explicit passing through layers.
+- **Single extension surface.** Future observability integrations have explicit hook points inside `_build_processors()` rather than being scattered across the codebase:
+  - **Sentry** — add `sentry_sdk.capture_event` as a structlog processor for `ERROR`+ entries, or register `sentry_sdk.integrations.logging.EventHandler` on the stdlib root logger.
+  - **OpenTelemetry** — insert `OpenTelemetryProcessor()` right after `merge_contextvars` to inject the active span's `trace_id` and `span_id` into every log record, correlating logs with traces.
+  - **Alerting / metrics** — add a processor that increments a counter (Prometheus, StatsD) on ERROR entries.
+- **stdlib integration.** Uvicorn, SQLAlchemy, httpx, and any other library that uses stdlib `logging` are routed through the same structlog formatter, so the entire log stream is consistent.
+
+**Trade-off:** structlog adds a thin dependency and a small startup cost for processor-chain construction. The alternative (plain `logging.basicConfig`) produces unstructured text that is harder to query in production. Given that the project is already running structlog, the cost is zero; the gain is a clear, maintainable integration path for Sentry and OpenTelemetry.
+
+---
+
+## 13. Documentation protected with HTTP Basic Auth
 
 **Decision:** `/docs`, `/redoc` and `/openapi.json` are served manually with an `HTTPBasic` dependency. FastAPI's default automatic exposure of these routes is disabled (`docs_url=None`, `redoc_url=None`, `openapi_url=None`).
 
