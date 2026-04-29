@@ -1,9 +1,11 @@
 import structlog
 
+from src.application.ports.notification_port import NotificationPort
+
 logger = structlog.get_logger()
 
 
-class NotificationService:
+class NotificationService(NotificationPort):
     """Simulated notification service.
 
     In production this would delegate to SES/SendGrid via an async HTTP call.

@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from src.application.dtos.task_dtos import ListTasksInput, TaskListWithCompletionOutput
-from src.application.use_cases.task.create_task import _to_output
+from src.application.mappers.task_mapper import task_to_output
 from src.domain.exceptions.domain_exceptions import ForbiddenError, NotFoundError
 from src.domain.repositories.task_list_repository import TaskListRepository
 from src.domain.repositories.task_repository import TaskRepository
@@ -23,8 +23,7 @@ class ListTasksUseCase:
         if task_list.owner_id != requester_id:
             raise ForbiddenError()
 
-        total = await self._task_repo.count_by_task_list(input_data.task_list_id)
-        completed = await self._task_repo.count_completed_by_task_list(
+        total, completed = await self._task_repo.count_tasks_summary(
             input_data.task_list_id
         )
         pct = round((completed / total * 100), 2) if total > 0 else 0.0
@@ -35,7 +34,7 @@ class ListTasksUseCase:
             priority=input_data.priority,
         )
         return TaskListWithCompletionOutput(
-            tasks=[_to_output(t) for t in tasks],
+            tasks=[task_to_output(t) for t in tasks],
             completion_percentage=pct,
             total_tasks=total,
             completed_tasks=completed,

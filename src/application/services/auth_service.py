@@ -24,12 +24,17 @@ class AuthService:
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
         return bcrypt.checkpw(plain_password.encode(), hashed_password.encode())
 
-    def create_access_token(self, user_id: UUID, email: str) -> str:
+    def create_access_token(self, user_id: UUID, email: str, username: str) -> str:
         expire = datetime.now(UTC) + timedelta(minutes=self._expire_minutes)
-        payload = {"sub": str(user_id), "email": email, "exp": expire}
+        payload = {
+            "sub": str(user_id),
+            "email": email,
+            "username": username,
+            "exp": expire,
+        }
         return jwt.encode(payload, self._secret_key, algorithm=self._algorithm)
 
-    def decode_token(self, token: str) -> dict:
+    def decode_token(self, token: str) -> dict[str, object]:
         try:
             return jwt.decode(token, self._secret_key, algorithms=[self._algorithm])
         except JWTError:

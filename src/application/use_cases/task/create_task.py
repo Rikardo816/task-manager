@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from src.application.dtos.task_dtos import CreateTaskInput, TaskOutput
+from src.application.mappers.task_mapper import task_to_output
 from src.domain.entities.task import Task
 from src.domain.exceptions.domain_exceptions import ForbiddenError, NotFoundError
 from src.domain.repositories.task_list_repository import TaskListRepository
@@ -31,19 +32,4 @@ class CreateTaskUseCase:
             assignee_id=input_data.assignee_id,
             due_date=input_data.due_date,
         )
-        return _to_output(await self._task_repo.create(task))
-
-
-def _to_output(task: Task) -> TaskOutput:
-    return TaskOutput(
-        id=task.id,
-        title=task.title,
-        task_list_id=task.task_list_id,
-        status=task.status,
-        priority=task.priority,
-        description=task.description,
-        assignee_id=task.assignee_id,
-        due_date=task.due_date,
-        created_at=task.created_at,
-        updated_at=task.updated_at,
-    )
+        return task_to_output(await self._task_repo.create(task))

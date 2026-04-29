@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from sqlalchemy import func, select
+from sqlalchemy import update as sa_update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.entities.task import Task
@@ -19,8 +20,8 @@ class SQLAlchemyTaskRepository(TaskRepository):
             title=m.title,
             task_list_id=m.task_list_id,
             description=m.description,
-            status=TaskStatus(m.status),
-            priority=Priority(m.priority),
+            status=m.status,
+            priority=m.priority,
             assignee_id=m.assignee_id,
             due_date=m.due_date,
             created_at=m.created_at,
@@ -45,27 +46,24 @@ class SQLAlchemyTaskRepository(TaskRepository):
             .order_by(TaskModel.created_at.desc())
         )
         if status is not None:
-            query = query.where(TaskModel.status == status.value)
+            query = query.where(TaskModel.status == status)
         if priority is not None:
-            query = query.where(TaskModel.priority == priority.value)
+            query = query.where(TaskModel.priority == priority)
 
         result = await self._session.scalars(query)
         return [self._to_entity(r) for r in result.all()]
 
-    async def count_by_task_list(self, task_list_id: UUID) -> int:
-        result = await self._session.scalar(
+    async def count_tasks_summary(self, task_list_id: UUID) -> tuple[int, int]:
+        total = await self._session.scalar(
             select(func.count()).where(TaskModel.task_list_id == task_list_id)
         )
-        return result or 0
-
-    async def count_completed_by_task_list(self, task_list_id: UUID) -> int:
-        result = await self._session.scalar(
+        completed = await self._session.scalar(
             select(func.count()).where(
                 TaskModel.task_list_id == task_list_id,
-                TaskModel.status == TaskStatus.DONE.value,
+                TaskModel.status == TaskStatus.DONE,
             )
         )
-        return result or 0
+        return total or 0, completed or 0
 
     async def create(self, task: Task) -> Task:
         model = TaskModel(
@@ -73,8 +71,8 @@ class SQLAlchemyTaskRepository(TaskRepository):
             title=task.title,
             task_list_id=task.task_list_id,
             description=task.description,
-            status=task.status.value,
-            priority=task.priority.value,
+            status=task.status,
+            priority=task.priority,
             assignee_id=task.assignee_id,
             due_date=task.due_date,
             created_at=task.created_at,
@@ -86,21 +84,21 @@ class SQLAlchemyTaskRepository(TaskRepository):
         return self._to_entity(model)
 
     async def update(self, task: Task) -> Task:
-        model = await self._session.scalar(
-            select(TaskModel).where(TaskModel.id == task.id)
+        await self._session.execute(
+            sa_update(TaskModel)
+            .where(TaskModel.id == task.id)
+            .values(
+                title=task.title,
+                description=task.description,
+                status=task.status,
+                priority=task.priority,
+                assignee_id=task.assignee_id,
+                due_date=task.due_date,
+                updated_at=task.updated_at,
+            )
         )
-        if not model:
-            raise ValueError(f"Task {task.id} not found for update")
-        model.title = task.title
-        model.description = task.description
-        model.status = task.status.value
-        model.priority = task.priority.value
-        model.assignee_id = task.assignee_id
-        model.due_date = task.due_date
-        model.updated_at = task.updated_at
         await self._session.flush()
-        await self._session.refresh(model)
-        return self._to_entity(model)
+        return task
 
     async def delete(self, task_id: UUID) -> None:
         model = await self._session.scalar(

@@ -4,7 +4,11 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from src.application.dtos.task_dtos import CreateTaskInput, ListTasksInput, UpdateTaskInput
+from src.application.dtos.task_dtos import (
+    CreateTaskInput,
+    ListTasksInput,
+    UpdateTaskInput,
+)
 from src.application.use_cases.task.change_task_status import ChangeTaskStatusUseCase
 from src.application.use_cases.task.create_task import CreateTaskUseCase
 from src.application.use_cases.task.delete_task import DeleteTaskUseCase
@@ -291,8 +295,7 @@ async def test_list_tasks_completion_percentage(
     ]
 
     task_list_repo.get_by_id.return_value = task_list
-    task_repo.count_by_task_list.return_value = 4
-    task_repo.count_completed_by_task_list.return_value = 2
+    task_repo.count_tasks_summary.return_value = (4, 2)
     task_repo.get_all_by_task_list.return_value = tasks
 
     result = await ListTasksUseCase(task_repo, task_list_repo).execute(
@@ -310,8 +313,7 @@ async def test_list_tasks_empty_list_zero_percentage(
     owner_id = uuid.uuid4()
     task_list = _make_task_list(owner_id)
     task_list_repo.get_by_id.return_value = task_list
-    task_repo.count_by_task_list.return_value = 0
-    task_repo.count_completed_by_task_list.return_value = 0
+    task_repo.count_tasks_summary.return_value = (0, 0)
     task_repo.get_all_by_task_list.return_value = []
 
     result = await ListTasksUseCase(task_repo, task_list_repo).execute(

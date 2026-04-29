@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from sqlalchemy import select
+from sqlalchemy import update as sa_update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.entities.task_list import TaskList
@@ -51,17 +52,17 @@ class SQLAlchemyTaskListRepository(TaskListRepository):
         return self._to_entity(model)
 
     async def update(self, task_list: TaskList) -> TaskList:
-        model = await self._session.scalar(
-            select(TaskListModel).where(TaskListModel.id == task_list.id)
+        await self._session.execute(
+            sa_update(TaskListModel)
+            .where(TaskListModel.id == task_list.id)
+            .values(
+                name=task_list.name,
+                description=task_list.description,
+                updated_at=task_list.updated_at,
+            )
         )
-        if not model:
-            raise ValueError(f"TaskList {task_list.id} not found for update")
-        model.name = task_list.name
-        model.description = task_list.description
-        model.updated_at = task_list.updated_at
         await self._session.flush()
-        await self._session.refresh(model)
-        return self._to_entity(model)
+        return task_list
 
     async def delete(self, task_list_id: UUID) -> None:
         model = await self._session.scalar(

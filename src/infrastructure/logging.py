@@ -52,20 +52,16 @@ def _build_processors() -> list:
         # into every log record.  This is how request_id (and future trace_id) flows
         # through all log lines within a single request without explicit passing.
         structlog.contextvars.merge_contextvars,
-
         # ── Extension point: OpenTelemetry ────────────────────────────────────
         # from opentelemetry.instrumentation.structlog import OpenTelemetryProcessor
         # OpenTelemetryProcessor(),
-
         structlog.stdlib.add_logger_name,
         structlog.stdlib.add_log_level,
         structlog.processors.TimeStamper(fmt="iso"),
         structlog.processors.StackInfoRenderer(),
         structlog.processors.UnicodeDecoder(),
-
         # ── Extension point: Sentry ───────────────────────────────────────────
         # _sentry_processor,   # call sentry_sdk.capture_event for ERROR+
-
         structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
     ]
     return processors
@@ -129,9 +125,7 @@ def setup_logging() -> None:
         "sqlalchemy.pool": logging.WARNING,
     }
     for name, level in _noisy.items():
-        logging.getLogger(name).setLevel(
-            logging.DEBUG if _settings.DEBUG else level
-        )
+        logging.getLogger(name).setLevel(logging.DEBUG if _settings.DEBUG else level)
 
 
 # ── Request logging middleware ────────────────────────────────────────────────

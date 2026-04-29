@@ -1,8 +1,7 @@
-from datetime import UTC, datetime
 from uuid import UUID
 
 from src.application.dtos.task_list_dtos import TaskListOutput, UpdateTaskListInput
-from src.application.use_cases.task_list.create_task_list import _to_output
+from src.application.mappers.task_list_mapper import task_list_to_output
 from src.domain.exceptions.domain_exceptions import ForbiddenError, NotFoundError
 from src.domain.repositories.task_list_repository import TaskListRepository
 
@@ -23,10 +22,5 @@ class UpdateTaskListUseCase:
         if task_list.owner_id != requester_id:
             raise ForbiddenError()
 
-        if input_data.name is not None:
-            task_list.name = input_data.name
-        if input_data.description is not None:
-            task_list.description = input_data.description
-        task_list.updated_at = datetime.now(UTC)
-
-        return _to_output(await self._repo.update(task_list))
+        task_list.update(name=input_data.name, description=input_data.description)
+        return task_list_to_output(await self._repo.update(task_list))

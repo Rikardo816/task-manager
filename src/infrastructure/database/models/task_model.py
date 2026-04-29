@@ -14,14 +14,14 @@ class TaskModel(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    status: Mapped[str] = mapped_column(
-        Enum(TaskStatus, name="task_status_enum"),
+    status: Mapped[TaskStatus] = mapped_column(
+        Enum(TaskStatus, name="task_status_enum", native_enum=False),
         default=TaskStatus.TODO,
         nullable=False,
         index=True,
     )
-    priority: Mapped[str] = mapped_column(
-        Enum(Priority, name="priority_enum"),
+    priority: Mapped[Priority] = mapped_column(
+        Enum(Priority, name="priority_enum", native_enum=False),
         default=Priority.MEDIUM,
         nullable=False,
         index=True,

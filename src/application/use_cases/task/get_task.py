@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from src.application.dtos.task_dtos import TaskOutput
-from src.application.use_cases.task.create_task import _to_output
+from src.application.mappers.task_mapper import task_to_output
 from src.domain.exceptions.domain_exceptions import ForbiddenError, NotFoundError
 from src.domain.repositories.task_list_repository import TaskListRepository
 from src.domain.repositories.task_repository import TaskRepository
@@ -26,4 +26,4 @@ class GetTaskUseCase:
         task = await self._task_repo.get_by_id(task_id)
         if not task or task.task_list_id != task_list_id:
             raise NotFoundError("Task", str(task_id))
-        return _to_output(task)
+        return task_to_output(task)

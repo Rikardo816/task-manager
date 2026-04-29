@@ -1,4 +1,5 @@
 import secrets
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Annotated, Any
 
@@ -19,7 +20,14 @@ from src.domain.exceptions.domain_exceptions import (
     NotFoundError,
     UnauthorizedError,
 )
-from src.infrastructure.api.routers import auth, health, system, task_lists, tasks, users
+from src.infrastructure.api.routers import (
+    auth,
+    health,
+    system,
+    task_lists,
+    tasks,
+    users,
+)
 from src.infrastructure.database.connection import engine
 from src.infrastructure.database.models.base import Base
 from src.infrastructure.logging import RequestLoggingMiddleware, setup_logging
@@ -55,10 +63,11 @@ def _verify_docs(
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):  # type: ignore[type-arg]
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("startup", env=settings.ENVIRONMENT, version=settings.APP_VERSION)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    if settings.ENVIRONMENT == "development":
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
     yield
     logger.info("shutdown")
     await engine.dispose()
@@ -78,7 +87,7 @@ app = FastAPI(
 app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

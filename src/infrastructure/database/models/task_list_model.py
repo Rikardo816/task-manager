@@ -28,7 +28,7 @@ class TaskListModel(Base):
         nullable=False,
     )
 
-    tasks: Mapped[list] = relationship(
+    tasks: Mapped[list["TaskModel"]] = relationship(  # noqa: F821
         "TaskModel",
         back_populates="task_list",
         cascade="all, delete-orphan",

@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from src.application.dtos.task_dtos import TaskOutput
-from src.application.use_cases.task.create_task import _to_output
+from src.application.mappers.task_mapper import task_to_output
 from src.domain.exceptions.domain_exceptions import ForbiddenError, NotFoundError
 from src.domain.repositories.task_list_repository import TaskListRepository
 from src.domain.repositories.task_repository import TaskRepository
@@ -33,4 +33,4 @@ class ChangeTaskStatusUseCase:
             raise NotFoundError("Task", str(task_id))
 
         task.change_status(new_status)
-        return _to_output(await self._task_repo.update(task))
+        return task_to_output(await self._task_repo.update(task))

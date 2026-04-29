@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import date, datetime
 from uuid import UUID
 
@@ -50,4 +50,4 @@ class TaskListWithCompletionOutput:
     tasks: list[TaskOutput]
     completion_percentage: float
     total_tasks: int
-    completed_tasks: int = field(default=0)
+    completed_tasks: int

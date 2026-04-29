@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from sqlalchemy import select
+from sqlalchemy import update as sa_update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.entities.user import User
@@ -55,16 +56,16 @@ class SQLAlchemyUserRepository(UserRepository):
         return self._to_entity(model)
 
     async def update(self, user: User) -> User:
-        model = await self._session.scalar(
-            select(UserModel).where(UserModel.id == user.id)
+        await self._session.execute(
+            sa_update(UserModel)
+            .where(UserModel.id == user.id)
+            .values(
+                email=user.email,
+                username=user.username,
+                hashed_password=user.hashed_password,
+                is_active=user.is_active,
+                updated_at=user.updated_at,
+            )
         )
-        if not model:
-            raise ValueError(f"User {user.id} not found for update")
-        model.email = user.email
-        model.username = user.username
-        model.hashed_password = user.hashed_password
-        model.is_active = user.is_active
-        model.updated_at = user.updated_at
         await self._session.flush()
-        await self._session.refresh(model)
-        return self._to_entity(model)
+        return user

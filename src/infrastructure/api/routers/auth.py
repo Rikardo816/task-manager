@@ -1,21 +1,18 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.dtos.auth_dtos import LoginInput, RegisterUserInput
 from src.application.services.auth_service import AuthService
 from src.application.use_cases.auth.login_user import LoginUserUseCase
 from src.application.use_cases.auth.register_user import RegisterUserUseCase
-from src.infrastructure.api.dependencies import get_auth_service, get_db
+from src.domain.repositories.user_repository import UserRepository
+from src.infrastructure.api.dependencies import get_auth_service, get_user_repo
 from src.infrastructure.api.schemas.auth_schemas import (
     LoginRequest,
     RegisterRequest,
     TokenResponse,
     UserResponse,
-)
-from src.infrastructure.repositories.sqlalchemy_user_repository import (
-    SQLAlchemyUserRepository,
 )
 
 router = APIRouter()
@@ -28,11 +25,10 @@ router = APIRouter()
 )
 async def register(
     body: RegisterRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    user_repo: Annotated[UserRepository, Depends(get_user_repo)],
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
 ) -> UserResponse:
-    use_case = RegisterUserUseCase(SQLAlchemyUserRepository(db), auth_service)
-    result = await use_case.execute(
+    result = await RegisterUserUseCase(user_repo, auth_service).execute(
         RegisterUserInput(
             email=body.email,
             username=body.username,
@@ -45,11 +41,10 @@ async def register(
 @router.post("/login", response_model=TokenResponse)
 async def login(
     body: LoginRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    user_repo: Annotated[UserRepository, Depends(get_user_repo)],
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
 ) -> TokenResponse:
-    use_case = LoginUserUseCase(SQLAlchemyUserRepository(db), auth_service)
-    result = await use_case.execute(
+    result = await LoginUserUseCase(user_repo, auth_service).execute(
         LoginInput(email=body.email, password=body.password)
     )
     return TokenResponse(access_token=result.access_token)

@@ -2,7 +2,6 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.dtos.task_dtos import (
     CreateTaskInput,
@@ -17,8 +16,18 @@ from src.application.use_cases.task.delete_task import DeleteTaskUseCase
 from src.application.use_cases.task.get_task import GetTaskUseCase
 from src.application.use_cases.task.list_tasks import ListTasksUseCase
 from src.application.use_cases.task.update_task import UpdateTaskUseCase
+from src.domain.repositories.task_list_repository import TaskListRepository
+from src.domain.repositories.task_repository import TaskRepository
+from src.domain.repositories.user_repository import UserRepository
 from src.domain.value_objects.enums import Priority, TaskStatus
-from src.infrastructure.api.dependencies import get_current_user_id, get_db
+from src.infrastructure.api.dependencies import (
+    CurrentUser,
+    get_current_user,
+    get_current_user_id,
+    get_task_list_repo,
+    get_task_repo,
+    get_user_repo,
+)
 from src.infrastructure.api.schemas.task_schemas import (
     AssignTaskRequest,
     ChangeStatusRequest,
@@ -27,38 +36,24 @@ from src.infrastructure.api.schemas.task_schemas import (
     TaskResponse,
     TaskUpdateRequest,
 )
-from src.infrastructure.repositories.sqlalchemy_task_list_repository import (
-    SQLAlchemyTaskListRepository,
-)
-from src.infrastructure.repositories.sqlalchemy_task_repository import (
-    SQLAlchemyTaskRepository,
-)
-from src.infrastructure.repositories.sqlalchemy_user_repository import (
-    SQLAlchemyUserRepository,
-)
 
 router = APIRouter()
 
 _BASE = "/{task_list_id}/tasks"
 
-
-def _task_repo(db: AsyncSession) -> SQLAlchemyTaskRepository:
-    return SQLAlchemyTaskRepository(db)
-
-
-def _task_list_repo(db: AsyncSession) -> SQLAlchemyTaskListRepository:
-    return SQLAlchemyTaskListRepository(db)
+_notification_service = NotificationService()
 
 
 @router.get(_BASE, response_model=TaskListWithCompletionResponse)
 async def list_tasks(
     task_list_id: UUID,
     user_id: Annotated[UUID, Depends(get_current_user_id)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    task_repo: Annotated[TaskRepository, Depends(get_task_repo)],
+    task_list_repo: Annotated[TaskListRepository, Depends(get_task_list_repo)],
     status_filter: TaskStatus | None = Query(None, alias="status"),
     priority_filter: Priority | None = Query(None, alias="priority"),
 ) -> TaskListWithCompletionResponse:
-    result = await ListTasksUseCase(_task_repo(db), _task_list_repo(db)).execute(
+    result = await ListTasksUseCase(task_repo, task_list_repo).execute(
         ListTasksInput(
             task_list_id=task_list_id,
             status=status_filter,
@@ -83,9 +78,10 @@ async def create_task(
     task_list_id: UUID,
     body: TaskCreateRequest,
     user_id: Annotated[UUID, Depends(get_current_user_id)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    task_repo: Annotated[TaskRepository, Depends(get_task_repo)],
+    task_list_repo: Annotated[TaskListRepository, Depends(get_task_list_repo)],
 ) -> TaskResponse:
-    result = await CreateTaskUseCase(_task_repo(db), _task_list_repo(db)).execute(
+    result = await CreateTaskUseCase(task_repo, task_list_repo).execute(
         CreateTaskInput(
             title=body.title,
             task_list_id=task_list_id,
@@ -104,9 +100,10 @@ async def get_task(
     task_list_id: UUID,
     task_id: UUID,
     user_id: Annotated[UUID, Depends(get_current_user_id)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    task_repo: Annotated[TaskRepository, Depends(get_task_repo)],
+    task_list_repo: Annotated[TaskListRepository, Depends(get_task_list_repo)],
 ) -> TaskResponse:
-    result = await GetTaskUseCase(_task_repo(db), _task_list_repo(db)).execute(
+    result = await GetTaskUseCase(task_repo, task_list_repo).execute(
         task_id=task_id, task_list_id=task_list_id, requester_id=user_id
     )
     return TaskResponse(**vars(result))
@@ -118,9 +115,10 @@ async def update_task(
     task_id: UUID,
     body: TaskUpdateRequest,
     user_id: Annotated[UUID, Depends(get_current_user_id)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    task_repo: Annotated[TaskRepository, Depends(get_task_repo)],
+    task_list_repo: Annotated[TaskListRepository, Depends(get_task_list_repo)],
 ) -> TaskResponse:
-    result = await UpdateTaskUseCase(_task_repo(db), _task_list_repo(db)).execute(
+    result = await UpdateTaskUseCase(task_repo, task_list_repo).execute(
         task_id=task_id,
         task_list_id=task_list_id,
         input_data=UpdateTaskInput(
@@ -140,9 +138,10 @@ async def delete_task(
     task_list_id: UUID,
     task_id: UUID,
     user_id: Annotated[UUID, Depends(get_current_user_id)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    task_repo: Annotated[TaskRepository, Depends(get_task_repo)],
+    task_list_repo: Annotated[TaskListRepository, Depends(get_task_list_repo)],
 ) -> None:
-    await DeleteTaskUseCase(_task_repo(db), _task_list_repo(db)).execute(
+    await DeleteTaskUseCase(task_repo, task_list_repo).execute(
         task_id=task_id, task_list_id=task_list_id, requester_id=user_id
     )
 
@@ -153,9 +152,10 @@ async def change_task_status(
     task_id: UUID,
     body: ChangeStatusRequest,
     user_id: Annotated[UUID, Depends(get_current_user_id)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    task_repo: Annotated[TaskRepository, Depends(get_task_repo)],
+    task_list_repo: Annotated[TaskListRepository, Depends(get_task_list_repo)],
 ) -> TaskResponse:
-    result = await ChangeTaskStatusUseCase(_task_repo(db), _task_list_repo(db)).execute(
+    result = await ChangeTaskStatusUseCase(task_repo, task_list_repo).execute(
         task_id=task_id,
         task_list_id=task_list_id,
         new_status=body.status,
@@ -169,18 +169,21 @@ async def assign_task(
     task_list_id: UUID,
     task_id: UUID,
     body: AssignTaskRequest,
-    user_id: Annotated[UUID, Depends(get_current_user_id)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    task_repo: Annotated[TaskRepository, Depends(get_task_repo)],
+    task_list_repo: Annotated[TaskListRepository, Depends(get_task_list_repo)],
+    user_repo: Annotated[UserRepository, Depends(get_user_repo)],
 ) -> TaskResponse:
     result = await AssignTaskUseCase(
-        _task_repo(db),
-        _task_list_repo(db),
-        SQLAlchemyUserRepository(db),
-        NotificationService(),
+        task_repo,
+        task_list_repo,
+        user_repo,
+        _notification_service,
     ).execute(
         task_id=task_id,
         task_list_id=task_list_id,
         assignee_id=body.assignee_id,
-        requester_id=user_id,
+        requester_id=current_user.id,
+        requester_username=current_user.username,
     )
     return TaskResponse(**vars(result))

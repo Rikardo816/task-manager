@@ -1,0 +1,54 @@
+# ── Python artefacts ──────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+dist/
+build/
+
+# ── Virtual environments ──────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+
+# ── Test & coverage ───────────────────────────────────────────────────────────
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# ── Type checkers & linters ───────────────────────────────────────────────────
+.mypy_cache/
+.ruff_cache/
+
+# ── Environment files (never bake secrets into the image) ─────────────────────
+.env
+.env.prod
+.env.local
+
+# ── Git ───────────────────────────────────────────────────────────────────────
+.git/
+.gitignore
+
+# ── CI / GitHub ───────────────────────────────────────────────────────────────
+.github/
+
+# ── Pre-commit ────────────────────────────────────────────────────────────────
+.pre-commit-config.yaml
+
+# ── Docs & dev artefacts ──────────────────────────────────────────────────────
+README.md
+DECISION_LOG*.md
+Makefile
+*.md
+
+# ── IDE ───────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.iml
+
+# ── OS ────────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db

@@ -25,3 +25,23 @@ class Task:
     def assign_to(self, user_id: UUID) -> None:
         self.assignee_id = user_id
         self.updated_at = datetime.now(UTC)
+
+    def update(
+        self,
+        title: str | None = None,
+        description: str | None = None,
+        priority: Priority | None = None,
+        assignee_id: UUID | None = None,
+        due_date: date | None = None,
+    ) -> None:
+        if title is not None:
+            self.title = title
+        if description is not None:
+            self.description = description
+        if priority is not None:
+            self.priority = priority
+        if assignee_id is not None:
+            self.assignee_id = assignee_id
+        if due_date is not None:
+            self.due_date = due_date
+        self.updated_at = datetime.now(UTC)
