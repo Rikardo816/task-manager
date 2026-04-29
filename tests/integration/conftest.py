@@ -1,6 +1,9 @@
+from collections.abc import AsyncGenerator
+
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
 import src.infrastructure.database.models  # noqa: F401
@@ -17,9 +20,16 @@ _test_engine = create_async_engine(
     echo=False,
 )
 
+_test_session_factory = async_sessionmaker(
+    _test_engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+    autoflush=False,
+)
+
 
 @pytest.fixture(scope="session", autouse=True)
-async def create_tables() -> None:
+async def create_tables() -> AsyncGenerator[None, None]:
     async with _test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
@@ -29,20 +39,24 @@ async def create_tables() -> None:
     await _test_engine.dispose()
 
 
-@pytest.fixture
-async def db_session() -> AsyncSession:
-    async with _test_engine.connect() as conn:
-        await conn.begin()
-        session = AsyncSession(bind=conn, join_transaction_mode="create_savepoint")
-        yield session
-        await session.close()
-        await conn.rollback()
+@pytest.fixture(autouse=True)
+async def clean_db(create_tables: None) -> AsyncGenerator[None, None]:
+    yield
+    async with _test_engine.begin() as conn:
+        for table in reversed(Base.metadata.sorted_tables):
+            await conn.execute(table.delete())
 
 
 @pytest.fixture
-async def client(db_session: AsyncSession) -> AsyncClient:
-    async def _override_db():
-        yield db_session
+async def client() -> AsyncGenerator[AsyncClient, None]:
+    async def _override_db() -> AsyncGenerator[AsyncSession, None]:
+        async with _test_session_factory() as session:
+            try:
+                yield session
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
 
     app.dependency_overrides[get_db] = _override_db
     async with AsyncClient(
