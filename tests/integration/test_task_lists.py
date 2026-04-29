@@ -70,4 +70,4 @@ async def test_delete_task_list(client: AsyncClient, auth_headers: dict) -> None
 
 async def test_task_list_requires_auth(client: AsyncClient) -> None:
     resp = await client.get("/task-lists")
-    assert resp.status_code == 403
+    assert resp.status_code == 401

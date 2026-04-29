@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.services.auth_service import AuthService
 from src.config import get_settings
+from src.domain.exceptions.domain_exceptions import UnauthorizedError
 from src.domain.repositories.task_list_repository import TaskListRepository
 from src.domain.repositories.task_repository import TaskRepository
 from src.domain.repositories.user_repository import UserRepository
@@ -23,7 +24,7 @@ from src.infrastructure.repositories.sqlalchemy_user_repository import (
     SQLAlchemyUserRepository,
 )
 
-_security = HTTPBearer()
+_security = HTTPBearer(auto_error=False)
 _settings = get_settings()
 
 _auth_service = AuthService(
@@ -54,8 +55,10 @@ def get_auth_service() -> AuthService:
 
 
 async def get_current_user(
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(_security)],
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_security)],
 ) -> CurrentUser:
+    if credentials is None:
+        raise UnauthorizedError("Authentication required")
     payload = _auth_service.decode_token(credentials.credentials)
     return CurrentUser(
         id=UUID(str(payload["sub"])),
