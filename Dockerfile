@@ -1,36 +1,41 @@
 # ─── Stage 1: builder ────────────────────────────────────────────────────────
 FROM python:3.12-slim AS builder
 
+# Install uv from the official distroless image — no extra layers, no pip
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
 WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_PROJECT_ENVIRONMENT=/app/.venv
 
-# System deps for asyncpg (libpq not needed at build for pure-python wheels)
+# System deps for asyncpg compilation
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Install production deps into an isolated venv
-RUN python -m venv /app/.venv
-ENV PATH="/app/.venv/bin:$PATH"
+# Install production deps before copying source — maximises layer cache reuse.
+# This layer is only invalidated when pyproject.toml or uv.lock change.
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev --no-install-project
 
-COPY pyproject.toml ./
-# Install only production dependencies (no [dev])
-RUN pip install --upgrade pip && pip install .
+# Copy source and register the project itself inside the venv
+COPY src/ ./src/
+RUN uv sync --frozen --no-dev
 
 
 # ─── Stage 2: development ────────────────────────────────────────────────────
 FROM builder AS development
 
-# Install dev extras on top of the production venv
-RUN pip install ".[dev]"
+# Add dev extras (pytest, black, ruff, …) on top of the production venv
+RUN uv sync --frozen
 
 COPY . .
 
-CMD ["uvicorn", "src.infrastructure.api.main:app", \
+CMD ["/app/.venv/bin/uvicorn", "src.infrastructure.api.main:app", \
      "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
 
@@ -47,7 +52,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # Non-root user for least-privilege execution
 RUN groupadd --system app && useradd --system --gid app app
 
-# Copy only the venv and application source — no build tools
+# Copy only the venv and application source — no build tools, no uv binary
 COPY --from=builder /app/.venv /app/.venv
 COPY src/ ./src/
 COPY alembic/ ./alembic/

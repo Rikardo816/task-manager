@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID
 
 from src.application.dtos.task_list_dtos import TaskListOutput, UpdateTaskListInput
@@ -27,6 +27,6 @@ class UpdateTaskListUseCase:
             task_list.name = input_data.name
         if input_data.description is not None:
             task_list.description = input_data.description
-        task_list.updated_at = datetime.utcnow()
+        task_list.updated_at = datetime.now(UTC)
 
         return _to_output(await self._repo.update(task_list))

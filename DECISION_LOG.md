@@ -122,7 +122,22 @@ Technical decisions made during the design and implementation of this project.
 
 ---
 
-## 11. Documentation protected with HTTP Basic Auth
+## 11. Package manager: uv over pip/venv
+
+**Decision:** [uv](https://docs.astral.sh/uv/) (Astral, written in Rust) as the single tool for virtual environment creation, dependency installation, and script execution.
+
+**Rationale:**
+- `uv sync` replaces the three-step dance of `python -m venv`, `source .venv/bin/activate`, and `pip install` — one command, reproducible from `uv.lock`.
+- Dependency resolution is 10–100× faster than pip; cold installs that took ~30 s now complete in under 3 s.
+- `uv.lock` is a cross-platform lock file that pins every transitive dependency, eliminating "works on my machine" failures in CI.
+- In Docker, uv is injected via `COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/` — no extra layer, no bootstrap pip call. `UV_COMPILE_BYTECODE=1` pre-compiles `.pyc` files at build time so the container starts faster; `UV_LINK_MODE=copy` avoids hard-link errors across Docker filesystem layers.
+- The project still uses a standard `pyproject.toml` with `hatchling` as the build backend — uv is purely a tooling layer and does not lock the project into any non-standard format.
+
+**Trade-off:** Requires uv to be installed on the developer's machine (one `curl` command). Teams already on pip/virtualenv need a one-time migration. The `uv.lock` file adds ~50 KB to the repo but buys full reproducibility.
+
+---
+
+## 12. Documentation protected with HTTP Basic Auth
 
 **Decision:** `/docs`, `/redoc` and `/openapi.json` are served manually with an `HTTPBasic` dependency. FastAPI's default automatic exposure of these routes is disabled (`docs_url=None`, `redoc_url=None`, `openapi_url=None`).
 

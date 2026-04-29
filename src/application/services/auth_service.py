@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from jose import JWTError, jwt
@@ -27,7 +27,7 @@ class AuthService:
         return _pwd_context.verify(plain_password, hashed_password)
 
     def create_access_token(self, user_id: UUID, email: str) -> str:
-        expire = datetime.utcnow() + timedelta(minutes=self._expire_minutes)
+        expire = datetime.now(UTC) + timedelta(minutes=self._expire_minutes)
         payload = {"sub": str(user_id), "email": email, "exp": expire}
         return jwt.encode(payload, self._secret_key, algorithm=self._algorithm)
 

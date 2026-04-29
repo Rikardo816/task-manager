@@ -65,30 +65,30 @@ All configuration is driven by environment files. Two templates are provided:
 
 ## Local setup (without Docker)
 
-**Requirements:** Python 3.12+, PostgreSQL 15+
+**Requirements:** Python 3.12+, PostgreSQL 15+, [uv](https://docs.astral.sh/uv/getting-started/installation/)
 
 ```bash
 # 1. Clone & enter the project
 git clone <repo-url> && cd task-manager
 
-# 2. Create virtual environment
-python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+# 2. Install all dependencies — uv creates .venv and installs everything in one step
+uv sync --extra dev
 
-# 3. Install all dependencies (including dev)
-pip install ".[dev]"
-
-# 4. Create your local env file
+# 3. Create your local env file
 cp .env.example .env
 # Open .env and update DATABASE_URL / TEST_DATABASE_URL to point to localhost
 # instead of the Docker hostname "db":
 #   DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/taskmanager
 
-# 5. Create the databases
+# 4. Create the databases
 psql -U postgres -c "CREATE DATABASE taskmanager;"
 psql -U postgres -c "CREATE DATABASE taskmanager_test;"
 
-# 6. Run the server
-uvicorn src.infrastructure.api.main:app --reload
+# 5. Run the server
+uv run uvicorn src.infrastructure.api.main:app --reload
+# Alternatively, activate the venv first:
+#   source .venv/bin/activate   # Windows: .venv\Scripts\activate
+#   uvicorn src.infrastructure.api.main:app --reload
 ```
 
 The API will be available at `http://localhost:8000`.
@@ -148,14 +148,14 @@ The production setup includes:
 ## Running tests
 
 ```bash
-# Unit tests only — no database required
-pytest tests/unit/
+# Unit tests only — no database required, no coverage threshold enforced
+uv run pytest tests/unit/ --no-cov
 
-# All tests (requires a running PostgreSQL with TEST_DATABASE_URL set in .env)
-pytest
+# All tests — requires a running PostgreSQL with TEST_DATABASE_URL set in .env.
+# Enforces 75% total coverage (unit + integration together reach that bar).
+uv run pytest
 
-# With HTML coverage report
-pytest --cov=src --cov-report=html
+# Open the HTML coverage report after a full run
 open htmlcov/index.html   # macOS; use xdg-open on Linux
 ```
 
@@ -170,10 +170,10 @@ docker compose exec app pytest
 ## Linting & formatting
 
 ```bash
-black src/ tests/          # auto-format
-isort src/ tests/          # sort imports
-flake8 src/ tests/         # lint
-ruff check src/ tests/     # fast lint (superset of flake8)
+uv run black src/ tests/          # auto-format
+uv run isort src/ tests/          # sort imports
+uv run flake8 src/ tests/         # lint
+uv run ruff check src/ tests/     # fast lint (superset of flake8)
 ```
 
 All checks run automatically on every push/PR via GitHub Actions (`.github/workflows/ci.yml`).

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID
 
 from src.application.dtos.task_dtos import TaskOutput, UpdateTaskInput
@@ -42,6 +42,6 @@ class UpdateTaskUseCase:
             task.assignee_id = input_data.assignee_id
         if input_data.due_date is not None:
             task.due_date = input_data.due_date
-        task.updated_at = datetime.utcnow()
+        task.updated_at = datetime.now(UTC)
 
         return _to_output(await self._task_repo.update(task))
